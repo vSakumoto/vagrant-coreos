@@ -1,0 +1,63 @@
+#cloud-config
+
+write_files:
+- path: /etc/environment
+  content: |
+    COREOS_PUBLIC_IPV4=$public_ipv4
+    COREOS_PRIVATE_IPV4=$private_ipv4
+
+coreos:
+  update:
+    reboot-strategy: 'off'
+  etcd2:
+    discovery: https://discovery.etcd.io/<TOKEN>
+    advertise-client-urls: http://$public_ipv4:2379
+    initial-advertise-peer-urls: http://$public_ipv4:2380
+    listen-client-urls: http://0.0.0.0:2379
+    listen-peer-urls: http://$public_ipv4:2380
+  fleet:
+    public-ip: $public_ipv4
+  flannel:
+    interface: $public_ipv4
+  units:
+  - name: etcd2.service
+    command: start
+  - name: fleet.service
+    command: start
+  - name: docker.service
+    command: start
+  - name: timezone.service
+    command: start
+    content: |
+      [Unit]
+      Description=timezone
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/bin/ln -sf ../usr/share/zoneinfo/Japan /etc/localtime
+  - name: 10-static.network
+    runtime: false
+    content: |
+      [Match]
+      Name=eth1
+
+      [Network]
+      Address=$private_ipv4/24
+      DNS=8.8.8.8
+      DNS=192.168.0.1
+
+# vagrant用接続アカウント設定
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ==
+  #自身の公開鍵設定
+  - ssh-rsa xxx
+
+# coreアカウント以外のユーザー作成
+users:
+- name: coreuser
+  passwd: $1$VIyj3wZe$HVVOEAc/H6a6YZGKCBWSD/
+  groups:
+  - sudo
+  - docker
+  ssh-authorized-keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCxF/fjvrJSm5wZApuUJNXxvvaEoD41gpWEL8tnywZyVdMW0jj85hQt6D+rrvwhe7q5PgngTW2wzutkO1heE1YwGmyj8CsOQ9ByuT98mSE8XDUAIAz+98O1xYRSqEi621+wOMcF4u8s/4qOZDEUQ45ufwiPVuAkVNdu9vkw+wsD8SQIO+I73Rboax9C+Le/wAZ0nXyqs4DDBCw3qCReTpWYwmNAnKkYhJUGjq0F+2U9ixyX49Kmpgyzb95WjOeGqyu4Ii5HLlw+ueCEqhzMTEQaXhRBNsVx6rShg3FXcfDBt/HSaD7tUP/2a1+hzhQ91If1hWiOdn+vUzfQm/JMhVVP
